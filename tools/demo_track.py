@@ -271,6 +271,7 @@ def imageflow_demo(predictor, vis_folder, current_time, args):
         else:
             break
         frame_id += 1
+    write_results(os.path.join(save_folder, 'results.csv'), results) 
 
 
 def main(exp, args):
