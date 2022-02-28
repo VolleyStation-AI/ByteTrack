@@ -53,6 +53,7 @@ class Exp(BaseExp):
         self.print_interval = 10
         self.eval_interval = 10
         self.exp_name = os.path.split(os.path.realpath(__file__))[1].split(".")[0]
+        self.opt_name = 'sgd'
 
         # -----------------  testing config ------------------ #
         self.test_size = (640, 640)
@@ -173,9 +174,14 @@ class Exp(BaseExp):
                 elif hasattr(v, "weight") and isinstance(v.weight, nn.Parameter):
                     pg1.append(v.weight)  # apply decay
 
-            optimizer = torch.optim.SGD(
-                pg0, lr=lr, momentum=self.momentum, nesterov=True
-            )
+            if self.opt_name == 'adam':
+                optimizer = torch.optim.AdamW(
+                    pg0, lr=lr,
+                )
+            else:
+                optimizer = torch.optim.SGD(
+                    pg0, lr=lr, momentum=self.momentum, nesterov=True
+                )
             optimizer.add_param_group(
                 {"params": pg1, "weight_decay": self.weight_decay}
             )  # add pg1 with weight_decay
