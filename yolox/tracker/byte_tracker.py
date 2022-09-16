@@ -102,6 +102,15 @@ class STrack(BaseTrack):
 
     @property
     # @jit(nopython=True)
+    def dxdy(self):
+        """Get delta x and delta y
+        """
+        if self.mean is None:
+            return np.asarray([0, 0], dtype=np.float)
+        return self.mean[4:6].copy()
+
+    @property
+    # @jit(nopython=True)
     def tlbr(self):
         """Convert bounding box to format `(min x, min y, max x, max y)`, i.e.,
         `(top left, bottom right)`.

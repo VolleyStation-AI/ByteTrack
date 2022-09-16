@@ -28,7 +28,7 @@ def get_total_and_free_memory_in_Mb(cuda_device):
     return int(total), int(used)
 
 
-def occupy_mem(cuda_device, mem_ratio=0.95):
+def occupy_mem(cuda_device, mem_ratio=0.60):  # was 0.95
     """
     pre-allocate gpu memory for training to avoid memory Fragmentation.
     """

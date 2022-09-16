@@ -185,7 +185,8 @@ class KalmanFilter(object):
             motion_cov.append(np.diag(sqr[i]))
         motion_cov = np.asarray(motion_cov)
 
-        mean = np.dot(mean, self._motion_mat.T)
+        new_mean = np.dot(mean, self._motion_mat.T)
+        mean = new_mean
         left = np.dot(self._motion_mat, covariance).transpose((1, 0, 2))
         covariance = np.dot(left, self._motion_mat.T) + motion_cov
 
