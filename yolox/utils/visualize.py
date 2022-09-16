@@ -64,6 +64,11 @@ def plot_tracking(image, tlwhs, obj_ids, scores=None, frame_id=0, play_num=0, fp
 
     for i, tlwh in enumerate(tlwhs):
         x1, y1, w, h = tlwh
+
+        player_loc = (int(x1 + w/2), y1 + h)
+        if court is not None and not court.oncourt(player_loc):
+            continue
+        
         intbox = tuple(map(int, (x1, y1, x1 + w, y1 + h)))
         obj_id = int(obj_ids[i])
         id_text = '{}'.format(int(obj_id))

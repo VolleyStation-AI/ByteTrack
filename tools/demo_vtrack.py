@@ -373,7 +373,11 @@ def main(exp, args):
     #  args.ymin)
     current_time = time.localtime()
 
+<<<<<<< HEAD
     if args.img_size is not None:
+=======
+    if args.img_size != -1:
+>>>>>>> 068c4d04c6089b0a6a32aeb148d04462b9325700
         args.img_size = list(int(x) for x in args.img_size.split(','))
     dataloader = LoadVideo(mobj.vid_fn,
                            args.img_size,

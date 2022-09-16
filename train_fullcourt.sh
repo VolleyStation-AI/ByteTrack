@@ -20,5 +20,3 @@ python3 tools/train.py \
 	train_ann /mnt/g/data/vball/fullcourt/trn_${DSET}.json \
 	val_ann /mnt/g/data/vball/fullcourt/val_${DSET}.json \
 	max_epoch 12 no_aug_epochs 4
-
-#	--resume -c $CKPT \

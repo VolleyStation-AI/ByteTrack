@@ -132,6 +132,7 @@ class Trainer:
         logger.info(
             "Model Summary: {}".format(get_model_info(model, self.exp.test_size))
         )
+        print(model)
         model.to(self.device)
 
         # solver related init
