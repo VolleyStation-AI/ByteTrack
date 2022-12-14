@@ -296,7 +296,8 @@ def imageflow_demo(predictor, vis_folder, current_time, args):
         else:
             break
         frame_id += 1
-    write_results(os.path.join(save_folder, 'results.csv'), results) 
+
+    write_results(os.path.join(save_folder, 'results.csv'), results)
 
     if args.save_result:
         res_file = osp.join(save_folder, f"{timestamp}.txt")
@@ -356,7 +357,7 @@ def main(exp, args):
         trt_file = osp.join(output_dir, "model_trt.pth")
         assert osp.exists(
             trt_file
-        ), "TensorRT model is not found!\n Run python3 tools/trt.py first!"
+        ), f"TensorRT model {trt_file} is not found!\n Run python3 tools/trt.py first!"
         model.head.decode_in_inference = False
         decoder = model.head.decode_outputs
         logger.info("Using TensorRT to inference")

@@ -13,7 +13,6 @@ import pprint
 from abc import ABCMeta, abstractmethod
 from tabulate import tabulate
 from typing import Dict
-from vtrak.config import cfg
 
 
 class BaseExp(metaclass=ABCMeta):
@@ -21,7 +20,7 @@ class BaseExp(metaclass=ABCMeta):
 
     def __init__(self):
         self.seed = None
-        self.output_dir = osp.join(cfg.output_root, 'ByteTrack', 'YOLOX_outputs')
+        self.output_dir = osp.join('/mnt/f/output', 'ByteTrack', 'YOLOX_outputs')
         self.print_interval = 100
         self.eval_interval = 10
 
