@@ -144,6 +144,8 @@ class Predictor(object):
             model_trt.load_state_dict(torch.load(trt_file))
 
             x = torch.ones((1, 3, exp.test_size[0], exp.test_size[1]), device=device)
+            if self.fp16:
+                x = x.half()
             self.model(x)
             self.model = model_trt
         self.rgb_means = (0.485, 0.456, 0.406)
@@ -288,16 +290,19 @@ def imageflow_demo(predictor, vis_folder, current_time, args):
                 online_im = plot_tracking(
                     img_info['raw_img'], online_tlwhs, online_ids, frame_id=frame_id + 1, fps=1. / timer.average_time
                 )
+
             else:
                 timer.toc()
                 online_im = img_info['raw_img']
+
             if args.save_result:
                 vid_writer.write(online_im)
+                #cv2.imwrite(f'{save_folder}/im{frame_id:06d}.png')
         else:
             break
         frame_id += 1
 
-    write_results(os.path.join(save_folder, 'results.csv'), results)
+    # write_results(os.path.join(save_folder, 'results.csv'), results)
 
     if args.save_result:
         res_file = osp.join(save_folder, f"{timestamp}.txt")
@@ -313,9 +318,8 @@ def main(exp, args):
     output_dir = osp.join(exp.output_dir, args.experiment_name)
     os.makedirs(output_dir, exist_ok=True)
 
-    if args.save_result:
-        vis_folder = output_dir  # osp.join(output_dir, "track_vis")
-        # os.makedirs(vis_folder, exist_ok=True)
+    vis_folder = output_dir  # osp.join(output_dir, "track_vis")
+    # os.makedirs(vis_folder, exist_ok=True)
 
     if args.trt:
         args.device = "gpu"
@@ -354,7 +358,10 @@ def main(exp, args):
 
     if args.trt:
         assert not args.fuse, "TensorRT model is not support model fusing!"
+        trt_root = '/mnt/f/output/ByteTrack/YOLOX_outputs/yolox_x_fullcourt'
+        trt_root = '/mnt/f/output/ByteTrack/YOLOX_outputs/dbg-trt_bs1'
         trt_file = osp.join(output_dir, "model_trt.pth")
+        trt_file = osp.join(trt_root, "model_trt.pth")
         assert osp.exists(
             trt_file
         ), f"TensorRT model {trt_file} is not found!\n Run python3 tools/trt.py first!"

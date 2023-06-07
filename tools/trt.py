@@ -15,6 +15,7 @@ def make_parser():
     parser = argparse.ArgumentParser("YOLOX ncnn deploy")
     parser.add_argument("-expn", "--experiment-name", type=str, default=None)
     parser.add_argument("-n", "--name", type=str, default=None, help="model name")
+    parser.add_argument("--bs", type=int, default=1, help='batch size')
 
     parser.add_argument(
         "-f",
@@ -35,10 +36,10 @@ def main():
         args.experiment_name = exp.exp_name
 
     model = exp.get_model()
-    file_name = os.path.join(exp.output_dir, args.experiment_name)
-    os.makedirs(file_name, exist_ok=True)
+    dir_name = os.path.join(exp.output_dir, args.experiment_name + f'_bs{args.bs}')
+    os.makedirs(dir_name, exist_ok=True)
     if args.ckpt is None:
-        ckpt_file = os.path.join(file_name, "best_ckpt.pth.tar")
+        ckpt_file = os.path.join(dir_name, "best_ckpt.pth.tar")
     else:
         ckpt_file = args.ckpt
 
@@ -50,7 +51,7 @@ def main():
     model.eval()
     model.cuda()
     model.head.decode_in_inference = False
-    x = torch.ones(1, 3, exp.test_size[0], exp.test_size[1]).cuda()
+    x = torch.ones(args.bs, 3, exp.test_size[0], exp.test_size[1]).cuda()
     model_trt = torch2trt(
         model,
         [x],
@@ -58,9 +59,9 @@ def main():
         log_level=trt.Logger.INFO,
         max_workspace_size=(1 << 32),
     )
-    torch.save(model_trt.state_dict(), os.path.join(file_name, "model_trt.pth"))
+    torch.save(model_trt.state_dict(), os.path.join(dir_name, "model_trt.pth"))
     logger.info("Converted TensorRT model done.")
-    engine_file = os.path.join(file_name, "model_trt.engine")
+    engine_file = os.path.join(dir_name, "model_trt.engine")
     engine_file_demo = os.path.join("deploy", "TensorRT", "cpp", "model_trt.engine")
     with open(engine_file, "wb") as f:
         f.write(model_trt.engine.serialize())
