@@ -8,9 +8,10 @@ export WORLD_SIZE=1
 
 EXP=yolox_x_fullcourt
 DSET=v5
-TAG="bytetrack-with-bad-touches"
+TAG="mot-ablation"
 
 CKPT=/mnt/g/checkpoints/ByteTrack/bytetrack_x_mot17.pth.tar
+CKPT=/mnt/f/output/ByteTrack/YOLOX_outputs/yolox_x_mot_ablation/latest_ckpt.pth.tar
 
 python3 tools/train.py \
 	-d 2 -b 8 --fp16 \
