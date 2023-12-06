@@ -12,6 +12,8 @@ from yolox.utils.visualize import plot_tracking
 from yolox.tracker.byte_tracker import BYTETracker
 from yolox.tracking_utils.timer import Timer
 
+from vtrak.vball_misc import safe_vid_rd
+
 import argparse
 import os
 import time
@@ -301,13 +303,14 @@ class Court():
                         thickness=text_thickness)
         return court
 
-    
+
 def imageflow_demo(predictor, vis_folder, current_time, args):
-    cap = cv2.VideoCapture(args.path if args.demo == "video" else args.camid)
-    width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)  # float
-    height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)  # float
+    path = args.path if args.demo == "video" else args.camid
+    cap = safe_vid_rd(path)
+    width = cap.width
+    height = cap.height
     court = Court(height)
-    fps = cap.get(cv2.CAP_PROP_FPS)
+    fps = cap.fps
     save_folder = os.path.join(
         vis_folder, time.strftime("%Y_%m_%d_%H_%M_%S", current_time)
     )
