@@ -7,20 +7,19 @@ export WORLD_SIZE=1
 # unset WORLD_SIZE
 
 EXP=yolox_x_fullcourt
-DSET=v5
-TAG="mot-ablation"
+DSET="v7"
+TAG=$DSET
 
-CKPT=/mnt/g/checkpoints/ByteTrack/bytetrack_x_mot17.pth.tar
 CKPT=/mnt/f/output/ByteTrack/YOLOX_outputs/yolox_x_mot_ablation/latest_ckpt.pth.tar
+CKPT=/mnt/ig/checkpoints/ByteTrack/bytetrack_x_mot17.pth.tar
 
 python3 tools/train.py \
 	-d 2 -b 8 --fp16 \
 	-f exps/example/mot/${EXP}.py \
 	-c $CKPT \
-	-o \
         -expn ${EXP}_${DSET}${TAG} \
-	train_ann /mnt/g/data/vball/fullcourt/trn_${DSET}.json \
-	val_ann /mnt/g/data/vball/fullcourt/val_${DSET}.json \
+	train_ann /mnt/ig/data/vball/fullcourt/trn_${DSET}.json \
+	val_ann /mnt/ig/data/vball/fullcourt/val_${DSET}.json \
 	max_epoch 12 no_aug_epochs 4
 
-# train_ann /mnt/g/data/vball/fullcourt/trn_${DSET}.json \
+#	-o \

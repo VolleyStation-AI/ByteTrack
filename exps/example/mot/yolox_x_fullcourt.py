@@ -20,8 +20,8 @@ class Exp(MyExp):
         self.num_classes = 5
         self.depth = 1.33
         self.width = 1.25
-        self.root = '/mnt/g/data/vball/fullcourt'
-        self.output_dir = '/mnt/f/output/ByteTrack/YOLOX_outputs'
+        self.root = '/mnt/ig/data/vball/fullcourt'
+        self.output_dir = '/mnt/h/output/ByteTrack/YOLOX_outputs'
         self.exp_name = os.path.split(os.path.realpath(__file__))[1].split(".")[0]
         self.train_ann = os.path.join(self.root, "trn_fullcourt.json")
         self.val_ann = os.path.join(self.root, "val_fullcourt.json")
