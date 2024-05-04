@@ -7,7 +7,7 @@ export WORLD_SIZE=1
 # unset WORLD_SIZE
 
 EXP=yolox_x_fullcourt
-DSET="v7"
+DSET="v9"
 TAG=$DSET
 
 CKPT=/mnt/f/output/ByteTrack/YOLOX_outputs/yolox_x_mot_ablation/latest_ckpt.pth.tar
