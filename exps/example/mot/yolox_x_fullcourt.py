@@ -27,6 +27,7 @@ class Exp(MyExp):
         self.val_ann = os.path.join(self.root, "val_fullcourt.json")
         self.input_size = (800, 1440)
         self.test_size = (800, 1440)
+        # random_size == training input_size is randomly chosen from 576h to 1024h
         self.random_size = (18, 32)
         self.max_epoch = 12  # 80
         self.print_interval = 20

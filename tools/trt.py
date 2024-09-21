@@ -37,6 +37,7 @@ def main():
 
     model = exp.get_model()
     dir_name = os.path.join(exp.output_dir, args.experiment_name + f'_bs{args.bs}')
+    print(f'output path {dir_name}')
     os.makedirs(dir_name, exist_ok=True)
     if args.ckpt is None:
         ckpt_file = os.path.join(dir_name, "best_ckpt.pth.tar")
@@ -63,6 +64,7 @@ def main():
     logger.info("Converted TensorRT model done.")
     engine_file = os.path.join(dir_name, "model_trt.engine")
     engine_file_demo = os.path.join("deploy", "TensorRT", "cpp", "model_trt.engine")
+    print(f'writing {engine_file_demo}')
     with open(engine_file, "wb") as f:
         f.write(model_trt.engine.serialize())
 

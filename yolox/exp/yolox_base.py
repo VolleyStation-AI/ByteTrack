@@ -32,6 +32,7 @@ class Exp(BaseExp):
         # --------------- transform config ----------------- #
         self.degrees = 10.0
         self.translate = 0.1
+        # random scale used by Mosaic Detection
         self.scale = (0.1, 2)
         self.mscale = (0.8, 1.6)
         self.shear = 2.0
