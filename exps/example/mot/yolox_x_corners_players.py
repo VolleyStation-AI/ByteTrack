@@ -17,7 +17,9 @@ class Exp(MyExp):
             'near-jump',
             'far-nojump',
             'far-jump',
-            'ball'
+            'upper',
+            'mid',
+            'lower',
             ]
         self.num_classes = len(self.class_names)
         self.depth = 1.33
