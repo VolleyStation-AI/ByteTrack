@@ -1,6 +1,5 @@
 export PYTHONPATH=$PWD:${PWD}/../vball_tracking
 
-# Train on Titan-RTX Turing
 export CUDA_VISIBLE_DEVICES=0,1
 export WORLD_SIZE=1
 # export CUDA_VISIBLE_DEVICES=0
