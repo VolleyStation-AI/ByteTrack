@@ -12,7 +12,7 @@ TAG=""
 
 CKPT=/mnt/f/output/ByteTrack/YOLOX_outputs/yolox_x_mot_ablation/latest_ckpt.pth.tar
 CKPT=/mnt/h/checkpoints/bytetrack/bytetrack_x_mot17.pth.tar
-CKPT=/mnt/h/output/ByteTrack/YOLOX_outputs/yolox_x_fullcourt_v9v9/latest_ckpt.pth.tar
+# CKPT=/mnt/h/output/ByteTrack/YOLOX_outputs/yolox_x_fullcourt_v9v9/latest_ckpt.pth.tar
 export CUDA_VISIBLE_DEVICES=0,1
 EPOCHS=50
 python3 tools/train.py \
