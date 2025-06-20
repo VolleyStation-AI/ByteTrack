@@ -1,11 +1,14 @@
-#!/usr/bin/env python3
-# -*- coding:utf-8 -*-
-# Copyright (c) Megvii, Inc. and its affiliates.
-
-from loguru import logger
-from tqdm import tqdm
-
+import cv2
+from matplotlib import pyplot as plt
+import numpy as np
 import torch
+from yolox.evaluators.coco_evaluator import COCOEvaluator
+from yolox.exp.build import get_exp
+from yolox.core import Trainer
+from tools.train import make_parser
+from loguru import logger
+
+from tqdm import tqdm
 
 from yolox.utils import (
     gather,
@@ -13,7 +16,6 @@ from yolox.utils import (
     postprocess,
     synchronize,
     time_synchronized,
-    xyxy2xywh
 )
 
 import contextlib
@@ -24,30 +26,19 @@ import tempfile
 import time
 
 
-class COCOEvaluator:
-    """
-    COCO AP Evaluation class.  All the data in the val2017 dataset are processed
-    and evaluated by COCO API.
-    """
-
+class CocoEvalPerClass(COCOEvaluator):
     def __init__(
-        self, dataloader, img_size, confthre, nmsthre, num_classes, testdev=False
+        self,
+        classes: list[str],
+        dataloader,
+        img_size,
+        confthre,
+        nmsthre,
+        num_classes,
+        testdev=False,
     ):
-        """
-        Args:
-            dataloader (Dataloader): evaluate dataloader.
-            img_size (int): image size after preprocess. images are resized
-                to squares whose shape is (img_size, img_size).
-            confthre (float): confidence threshold ranging from 0 to 1, which
-                is defined in the config file.
-            nmsthre (float): IoU threshold of non-max supression ranging from 0 to 1.
-        """
-        self.dataloader = dataloader
-        self.img_size = img_size
-        self.confthre = confthre
-        self.nmsthre = nmsthre
-        self.num_classes = num_classes
-        self.testdev = testdev
+        super().__init__(dataloader, img_size, confthre, nmsthre, num_classes, testdev)
+        self.classes = classes
 
     def evaluate(
         self,
@@ -95,6 +86,9 @@ class COCOEvaluator:
             model(x)
             model = model_trt
 
+        # vis_batches = random.choices(range(len(self.dataloader)), k=20)
+        vis_batches = list(range(len(self.dataloader)))
+
         for cur_iter, (imgs, _, info_imgs, ids) in enumerate(
             progress_bar(self.dataloader)
         ):
@@ -121,6 +115,9 @@ class COCOEvaluator:
                     nms_end = time_synchronized()
                     nms_time += nms_end - infer_end
 
+                if cur_iter in vis_batches:
+                    save_vis(imgs[0], outputs[0], cur_iter)
+
             data_list.extend(self.convert_to_coco_format(outputs, info_imgs, ids))
 
         statistics = torch.cuda.FloatTensor([inference_time, nms_time, n_samples])
@@ -132,41 +129,6 @@ class COCOEvaluator:
         eval_results = self.evaluate_prediction(data_list, statistics)
         synchronize()
         return eval_results
-
-    def convert_to_coco_format(self, outputs, info_imgs, ids):
-        data_list = []
-        for (output, img_h, img_w, img_id) in zip(
-            outputs, info_imgs[0], info_imgs[1], ids
-        ):
-            if output is None:
-                continue
-            output = output.cpu()
-
-            bboxes = output[:, 0:4]
-
-            # preprocessing: resize
-            scale = min(
-                self.img_size[0] / float(img_h), self.img_size[1] / float(img_w)
-            )
-            bboxes /= scale
-            bboxes = xyxy2xywh(bboxes)
-
-            cls = output[:, 6]
-            scores = output[:, 4] * output[:, 5]
-            for ind in range(bboxes.shape[0]):
-                try:
-                    label = self.dataloader.dataset.class_ids[int(cls[ind])]
-                    pred_data = {
-                        "image_id": int(img_id),
-                        "category_id": label,
-                        "bbox": bboxes[ind].numpy().tolist(),
-                        "score": scores[ind].numpy().item(),
-                        "segmentation": [],
-                    }  # COCO json format
-                    data_list.append(pred_data)
-                except:
-                    pass
-        return data_list
 
     def evaluate_prediction(self, data_dict, statistics):
         if not is_main_process():
@@ -206,22 +168,138 @@ class COCOEvaluator:
                 _, tmp = tempfile.mkstemp()
                 json.dump(data_dict, open(tmp, "w"))
                 cocoDt = cocoGt.loadRes(tmp)
-            '''
+            """
             try:
                 from yolox.layers import COCOeval_opt as COCOeval
             except ImportError:
                 from pycocotools import cocoeval as COCOeval
                 logger.warning("Use standard COCOeval.")
-            '''
-            #from pycocotools.cocoeval import COCOeval
+            """
+            # from pycocotools.cocoeval import COCOeval
             from yolox.layers import COCOeval_opt as COCOeval
+
             cocoEval = COCOeval(cocoGt, cocoDt, annType[1])
+            results = {}
+            all_cat_ids = cocoEval.params.catIds[:]
+            for cat_id in all_cat_ids:
+                class_name = self.classes[cat_id - 1]
+                info += f"Eval for class {cat_id}: {class_name}\n"
+                cocoEval.params.catIds = [cat_id]
+                cocoEval.evaluate()
+                cocoEval.accumulate()
+                redirect_string = io.StringIO()
+                with contextlib.redirect_stdout(redirect_string):
+                    cocoEval.summarize()
+                info += redirect_string.getvalue() + "\n"
+                results[class_name] = cocoEval.stats[0], cocoEval.stats[1]
+
+            info += "Eval for all classes:\n"
+            cocoEval.params.catIds = all_cat_ids
             cocoEval.evaluate()
             cocoEval.accumulate()
             redirect_string = io.StringIO()
             with contextlib.redirect_stdout(redirect_string):
                 cocoEval.summarize()
-            info += redirect_string.getvalue()
-            return cocoEval.stats[0], cocoEval.stats[1], info
+            info += redirect_string.getvalue() + "\n"
+            results["total"] = cocoEval.stats[0], cocoEval.stats[1]
+            return results, info
         else:
-            return 0, 0, info
+            return {}, info
+
+
+def draw_text(
+    img,
+    text,
+    pos=(0, 0),
+    font=cv2.FONT_HERSHEY_PLAIN,
+    font_scale=2,
+    font_thickness=2,
+    text_color=(0, 255, 0),
+    text_color_bg=(0, 0, 0),
+):
+    x, y = pos
+    text_size, _ = cv2.getTextSize(text, font, font_scale, font_thickness)
+    text_w, text_h = text_size
+    if text_color_bg is not None:
+        cv2.rectangle(img, pos, (x + text_w, y + text_h), text_color_bg, -1)
+    cv2.putText(
+        img,
+        text,
+        (x, y + text_h + font_scale - 1),
+        font,
+        font_scale,
+        text_color,
+        font_thickness,
+    )
+
+
+def save_vis(img, output, i):
+    colors = [
+        (0x66, 0xCD, 0xAA),
+        (0x00, 0xFF, 0x00),
+        (0x00, 0x00, 0xFF),
+        (0x1E, 0x90, 0xFF),
+        (0xFF, 0xA5, 0x00),
+        (0xFF, 0xA5, 0x00),
+        (0xFF, 0xA5, 0x00),
+        (0xFF, 0x14, 0x93),
+    ]
+    img = img.cpu()
+    rgb_means = ((0.485, 0.456, 0.406),)
+    std = (0.229, 0.224, 0.225)
+    img = img * torch.tensor(std).view(3, 1, 1)
+    img += torch.tensor(rgb_means).view(3, 1, 1)
+
+    img = img.permute(1, 2, 0)
+    img = (img.numpy() * 255).astype(np.uint8).copy()
+
+    output = output.cpu().round().int()
+
+    for pred in output:
+        bbox = pred[:4]
+        obj_cls = pred[-1]
+        cv2.rectangle(img, bbox[:2].tolist(), (bbox[2:]).tolist(), colors[obj_cls], 2)
+
+    plt.imsave(f"/home/pokropow/volleystation/output/det_pred/out_{i:04d}.png", img)
+
+
+def main(exp, args):
+    exp = get_exp(args.exp_file, args.name)
+    exp.merge(args.opts)
+    trainer = Trainer(exp, args)
+    # setup model etc
+    trainer.before_train()
+    testdev = False
+
+    val_loader = exp.get_eval_loader(args.batch_size, trainer.is_distributed, testdev)
+    evaluator = CocoEvalPerClass(
+        exp.class_names,
+        dataloader=val_loader,
+        img_size=exp.test_size,
+        confthre=exp.test_conf,
+        nmsthre=exp.nmsthre,
+        num_classes=exp.num_classes,
+        testdev=testdev,
+    )
+
+    per_class_eval, summary = evaluator.evaluate(
+        trainer.model, trainer.is_distributed, half=True
+    )
+    print(summary)
+
+    ap1, ap2, summary = trainer.evaluator.evaluate(
+        trainer.model, trainer.is_distributed, half=True
+    )
+    print("Total:")
+    print(summary)
+
+    print(per_class_eval)
+    print(ap1, ap2)
+
+
+if __name__ == "__main__":
+    args = make_parser().parse_args()
+    exp = get_exp(args.exp_file, args.name)
+    exp.merge(args.opts)
+
+    main(exp, args)
