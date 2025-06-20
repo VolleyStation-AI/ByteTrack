@@ -1,0 +1,151 @@
+# encoding: utf-8
+import os
+import torch
+import torch.distributed as dist
+
+from yolox.exp import Exp as MyExp
+
+class Exp(MyExp):
+    def __init__(self):
+        super(Exp, self).__init__()
+        # This must match the ordering of categories in the dataset json
+        self.class_names = [
+            'near-nojump',
+            'near-jump',
+            'far-nojump',
+            'far-jump',
+            'upper',
+            'mid',
+            'lower',
+            'referee_r1'
+            ]
+        self.num_classes = len(self.class_names)
+        self.depth = 1.33
+        self.width = 1.25
+        self.root = '/home/pokropow/volleystation/datasets/player_detection/fullcourt'
+        self.output_dir = '/home/pokropow/volleystation/output/ByteTrack/YOLOX_outputs'
+        self.exp_name = os.path.split(os.path.realpath(__file__))[1].split(".")[0]
+        self.train_ann = os.path.join(self.root, "trn_v10.json")
+        self.val_ann = os.path.join(self.root, "val_v10.json")
+        self.input_size = (800, 1440)
+        self.test_size = (800, 1440)
+        # random_size == training input_size is randomly chosen from 576h to 1024h
+        self.random_size = (18, 32)
+        self.max_epoch = 12  # 80
+        self.print_interval = 20
+        self.eval_interval = 1  # 5
+        self.test_conf = 0.1
+        self.nmsthre = 0.7
+        self.no_aug_epochs = 10
+        self.basic_lr_per_img = 0.001 / 64.0  # 0.001 / 64.0
+        self.warmup_epochs = 1
+
+    def get_data_loader(self, batch_size, is_distributed, no_aug=False):
+        from yolox.data import (
+            FullcourtDataset,
+            TrainTransform,
+            YoloBatchSampler,
+            DataLoader,
+            InfiniteSampler,
+            MosaicDetection,
+        )
+
+        dataset = FullcourtDataset(
+            data_dir=self.root,
+            json_file=self.train_ann,
+            name='',
+            img_size=self.input_size,
+            preproc=TrainTransform(
+                rgb_means=(0.485, 0.456, 0.406),
+                std=(0.229, 0.224, 0.225),
+                max_labels=500,
+            ),
+        )
+
+        dataset = MosaicDetection(
+            dataset,
+            mosaic=not no_aug,
+            img_size=self.input_size,
+            preproc=TrainTransform(
+                rgb_means=(0.485, 0.456, 0.406),
+                std=(0.229, 0.224, 0.225),
+                max_labels=1000,
+            ),
+            degrees=self.degrees,
+            translate=self.translate,
+            scale=self.scale,
+            shear=self.shear,
+            perspective=self.perspective,
+            enable_mixup=self.enable_mixup,
+        )
+
+        self.dataset = dataset
+
+        if is_distributed:
+            batch_size = batch_size // dist.get_world_size()
+
+        sampler = InfiniteSampler(
+            len(self.dataset), seed=self.seed if self.seed else 0
+        )
+
+        batch_sampler = YoloBatchSampler(
+            sampler=sampler,
+            batch_size=batch_size,
+            drop_last=False,
+            input_dimension=self.input_size,
+            mosaic=not no_aug,
+        )
+
+        dataloader_kwargs = {"num_workers": self.data_num_workers, "pin_memory": False}  # True}
+        dataloader_kwargs["batch_sampler"] = batch_sampler
+        train_loader = DataLoader(self.dataset, **dataloader_kwargs)
+
+        return train_loader
+
+    def get_eval_loader(self, batch_size, is_distributed, testdev=False):
+        from yolox.data import FullcourtDataset, ValTransform
+
+        valdataset = FullcourtDataset(
+            data_dir=self.root,
+            json_file=self.val_ann,
+            img_size=self.test_size,
+            name='',
+            preproc=ValTransform(
+                rgb_means=(0.485, 0.456, 0.406),
+                std=(0.229, 0.224, 0.225),
+            ),
+        )
+
+        if is_distributed:
+            batch_size = batch_size // dist.get_world_size()
+            sampler = torch.utils.data.distributed.DistributedSampler(
+                valdataset, shuffle=False
+            )
+        else:
+            sampler = torch.utils.data.SequentialSampler(valdataset)
+
+        dataloader_kwargs = {
+            "num_workers": self.data_num_workers,
+            "pin_memory": False, # True,
+            "sampler": sampler,
+        }
+        dataloader_kwargs["batch_size"] = batch_size
+        val_loader = torch.utils.data.DataLoader(valdataset, **dataloader_kwargs)
+
+        return val_loader
+
+    def get_evaluator(self, batch_size, is_distributed, testdev=False):
+        # from yolox.evaluators import COCOEvaluator
+        from eval_per_class import CocoEvalPerClass
+
+        val_loader = self.get_eval_loader(batch_size, is_distributed, testdev=testdev)
+        evaluator = CocoEvalPerClass(
+            self.class_names,
+            dataloader=val_loader,
+            img_size=self.test_size,
+            confthre=self.test_conf,
+            nmsthre=self.nmsthre,
+            num_classes=self.num_classes,
+            testdev=testdev,
+        )
+        return evaluator

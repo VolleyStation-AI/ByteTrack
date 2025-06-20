@@ -22,7 +22,7 @@ from yolox.utils import (
     occupy_mem,
     save_checkpoint,
     setup_logger,
-    synchronize
+    synchronize,
 )
 
 import datetime
@@ -91,8 +91,8 @@ class Trainer:
         iter_start_time = time.time()
 
         inps, targets = self.prefetcher.next()
-        #track_ids = targets[:, :, 5]
-        #targets = targets[:, :, :5]
+        # track_ids = targets[:, :, 5]
+        # targets = targets[:, :, :5]
         inps = inps.to(self.data_type)
         targets = targets.to(self.data_type)
         targets.requires_grad = False
@@ -177,7 +177,7 @@ class Trainer:
             self.tblogger = SummaryWriter(self.file_name)
 
         logger.info("Training start...")
-        #logger.info("\n{}".format(model))
+        # logger.info("\n{}".format(model))
 
     def after_train(self):
         logger.info(
@@ -190,7 +190,6 @@ class Trainer:
         logger.info("---> start train epoch{}".format(self.epoch + 1))
 
         if self.epoch + 1 == self.max_epoch - self.exp.no_aug_epochs or self.no_aug:
-            
             logger.info("--->No mosaic aug now!")
             self.train_loader.close_mosaic()
             logger.info("--->Add additional L1 loss now!")
@@ -198,7 +197,7 @@ class Trainer:
                 self.model.module.head.use_l1 = True
             else:
                 self.model.head.use_l1 = True
-            
+
             self.exp.eval_interval = 1
             if not self.no_aug:
                 self.save_ckpt(ckpt_name="last_mosaic_epoch")
@@ -299,17 +298,35 @@ class Trainer:
 
     def evaluate_and_save_model(self):
         evalmodel = self.ema_model.ema if self.use_model_ema else self.model
-        ap50_95, ap50, summary = self.exp.eval(
-            evalmodel, self.evaluator, self.is_distributed
-        )
+        eval_results = self.exp.eval(evalmodel, self.evaluator, self.is_distributed)
         self.model.train()
         if self.rank == 0:
-            self.tblogger.add_scalar("val/COCOAP50", ap50, self.epoch + 1)
-            self.tblogger.add_scalar("val/COCOAP50_95", ap50_95, self.epoch + 1)
+            if isinstance(eval_results[0], dict):
+                per_class_eval, summary = eval_results
+
+                ap50_95, ap50 = per_class_eval.pop("total")
+                self.tblogger.add_scalar("val/COCOAP50", ap50, self.epoch + 1)
+                self.tblogger.add_scalar("val/COCOAP50_95", ap50_95, self.epoch + 1)
+
+                for class_name, class_metrics in per_class_eval.items():
+                    ap50_95, ap50 = class_metrics
+                    self.tblogger.add_scalar(
+                        f"val-per-class/{class_name}/COCOAP50", ap50, self.epoch + 1
+                    )
+                    self.tblogger.add_scalar(
+                        f"val-per-class/{class_name}/COCOAP50_95",
+                        ap50_95,
+                        self.epoch + 1,
+                    )
+
+            else:
+                ap50_95, ap50, summary = eval_results
+                self.tblogger.add_scalar("val/COCOAP50", ap50, self.epoch + 1)
+                self.tblogger.add_scalar("val/COCOAP50_95", ap50_95, self.epoch + 1)
             logger.info("\n" + summary)
         synchronize()
 
-        #self.best_ap = max(self.best_ap, ap50_95)
+        # self.best_ap = max(self.best_ap, ap50_95)
         self.save_ckpt("last_epoch", ap50 > self.best_ap)
         self.best_ap = max(self.best_ap, ap50)
 
