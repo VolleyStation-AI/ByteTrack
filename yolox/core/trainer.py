@@ -176,6 +176,13 @@ class Trainer:
         if self.rank == 0:
             self.tblogger = SummaryWriter(self.file_name)
 
+        """
+        if 1:
+            # hacky eval
+            self.epoch = 0
+            self.evaluate_and_save_model()
+        """
+
         logger.info("Training start...")
         #logger.info("\n{}".format(model))
 
