@@ -176,8 +176,14 @@ class Trainer:
         if self.rank == 0:
             self.tblogger = SummaryWriter(self.file_name)
 
+        """
+        if 1:
+            # hacky eval
+            self.epoch = 0
+            self.evaluate_and_save_model()
+        """
+
         logger.info("Training start...")
-        #logger.info("\n{}".format(model))
 
     def after_train(self):
         logger.info(
@@ -299,11 +305,29 @@ class Trainer:
 
     def evaluate_and_save_model(self):
         evalmodel = self.ema_model.ema if self.use_model_ema else self.model
-        ap50_95, ap50, summary = self.exp.eval(
-            evalmodel, self.evaluator, self.is_distributed
-        )
+        eval_results = self.exp.eval(evalmodel, self.evaluator, self.is_distributed)
         self.model.train()
         if self.rank == 0:
+            if isinstance(eval_results[0], dict):
+                per_class_eval, summary = eval_results
+
+                ap50_95, ap50 = per_class_eval.pop("total")
+                self.tblogger.add_scalar("val/COCOAP50", ap50, self.epoch + 1)
+                self.tblogger.add_scalar("val/COCOAP50_95", ap50_95, self.epoch + 1)
+
+                for class_name, class_metrics in per_class_eval.items():
+                    ap50_95, ap50 = class_metrics
+                    self.tblogger.add_scalar(
+                        f"val-per-class/{class_name}/COCOAP50", ap50, self.epoch + 1
+                    )
+                    self.tblogger.add_scalar(
+                        f"val-per-class/{class_name}/COCOAP50_95",
+                        ap50_95,
+                        self.epoch + 1,
+                    )
+
+            else:
+                ap50_95, ap50, summary = eval_results
             self.tblogger.add_scalar("val/COCOAP50", ap50, self.epoch + 1)
             self.tblogger.add_scalar("val/COCOAP50_95", ap50_95, self.epoch + 1)
             logger.info("\n" + summary)
