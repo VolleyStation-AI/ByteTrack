@@ -154,15 +154,18 @@ class COCOEvaluator:
             cls = output[:, 6]
             scores = output[:, 4] * output[:, 5]
             for ind in range(bboxes.shape[0]):
-                label = self.dataloader.dataset.class_ids[int(cls[ind])]
-                pred_data = {
-                    "image_id": int(img_id),
-                    "category_id": label,
-                    "bbox": bboxes[ind].numpy().tolist(),
-                    "score": scores[ind].numpy().item(),
-                    "segmentation": [],
-                }  # COCO json format
-                data_list.append(pred_data)
+                try:
+                    label = self.dataloader.dataset.class_ids[int(cls[ind])]
+                    pred_data = {
+                        "image_id": int(img_id),
+                        "category_id": label,
+                        "bbox": bboxes[ind].numpy().tolist(),
+                        "score": scores[ind].numpy().item(),
+                        "segmentation": [],
+                    }  # COCO json format
+                    data_list.append(pred_data)
+                except:
+                    pass
         return data_list
 
     def evaluate_prediction(self, data_dict, statistics):

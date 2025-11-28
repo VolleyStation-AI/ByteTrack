@@ -138,7 +138,6 @@ class Exp(MyExp):
         return val_loader
 
     def get_evaluator(self, batch_size, is_distributed, testdev=False):
-        # from yolox.evaluators import COCOEvaluator
         from eval_per_class import CocoEvalPerClass
 
         val_loader = self.get_eval_loader(batch_size, is_distributed, testdev=testdev)

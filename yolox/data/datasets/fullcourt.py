@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 from pycocotools.coco import COCO
+from loguru import logger
 
 import os
 
@@ -97,6 +98,9 @@ class FullcourtDataset(Dataset):
         img_file = os.path.join(
             self.data_dir, self.name, file_name
         )
+        if not os.path.isfile(img_file):
+            logger.info(f'cant find file {img_file}')
+            raise
         img = cv2.imread(img_file)
         assert img is not None
 

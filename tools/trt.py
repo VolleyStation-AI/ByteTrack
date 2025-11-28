@@ -15,6 +15,7 @@ def make_parser():
     parser = argparse.ArgumentParser("YOLOX ncnn deploy")
     parser.add_argument("-expn", "--experiment-name", type=str, default=None)
     parser.add_argument("-n", "--name", type=str, default=None, help="model name")
+    parser.add_argument("--tag", type=str, default=None, help="tag")
     parser.add_argument("--bs", type=int, default=1, help='batch size')
 
     parser.add_argument(
@@ -37,6 +38,8 @@ def main():
 
     model = exp.get_model()
     dir_name = os.path.join(exp.output_dir, args.experiment_name + f'_bs{args.bs}')
+    if args.tag is not None:
+        dir_name += '_' + args.tag
     print(f'output path {dir_name}')
     os.makedirs(dir_name, exist_ok=True)
     if args.ckpt is None:

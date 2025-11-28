@@ -15,7 +15,7 @@ class STrack(BaseTrack):
     def __init__(self, tlwh, score):
 
         # wait activate
-        self._tlwh = np.asarray(tlwh, dtype=np.float)
+        self._tlwh = np.asarray(tlwh, dtype=np.float32)
         self.kalman_filter = None
         self.mean, self.covariance = None, None
         self.is_activated = False
@@ -106,7 +106,7 @@ class STrack(BaseTrack):
         """Get delta x and delta y
         """
         if self.mean is None:
-            return np.asarray([0, 0], dtype=np.float)
+            return np.asarray([0, 0], dtype=np.float32)
         return self.mean[4:6].copy()
 
     @property
