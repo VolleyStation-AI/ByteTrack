@@ -82,6 +82,7 @@ class Trainer:
             self.after_epoch()
 
     def train_in_iter(self):
+        time.sleep(10)
         for self.iter in range(self.max_iter):
             self.before_iter()
             self.train_one_iter()
@@ -193,6 +194,8 @@ class Trainer:
         )
 
     def before_epoch(self):
+        import time
+        time.sleep(10)
         logger.info("---> start train epoch{}".format(self.epoch + 1))
 
         if self.epoch + 1 == self.max_epoch - self.exp.no_aug_epochs or self.no_aug:
@@ -305,12 +308,27 @@ class Trainer:
 
     def evaluate_and_save_model(self):
         evalmodel = self.ema_model.ema if self.use_model_ema else self.model
+        ap50_95, ap50, summary = self.exp.eval(
+            evalmodel, self.evaluator, self.is_distributed
+        )
+        self.model.train()
+        if self.rank == 0:
+            self.tblogger.add_scalar("val/COCOAP50", ap50, self.epoch + 1)
+            self.tblogger.add_scalar("val/COCOAP50_95", ap50_95, self.epoch + 1)
+            logger.info("\n" + summary)
+        synchronize()
+
+        #self.best_ap = max(self.best_ap, ap50_95)
+        self.save_ckpt("last_epoch", ap50 > self.best_ap)
+        self.best_ap = max(self.best_ap, ap50)
+
+    def _evaluate_and_save_model(self):
+        evalmodel = self.ema_model.ema if self.use_model_ema else self.model
         eval_results = self.exp.eval(evalmodel, self.evaluator, self.is_distributed)
         self.model.train()
         if self.rank == 0:
             if isinstance(eval_results[0], dict):
                 per_class_eval, summary = eval_results
-
                 ap50_95, ap50 = per_class_eval.pop("total")
                 self.tblogger.add_scalar("val/COCOAP50", ap50, self.epoch + 1)
                 self.tblogger.add_scalar("val/COCOAP50_95", ap50_95, self.epoch + 1)
@@ -328,8 +346,8 @@ class Trainer:
 
             else:
                 ap50_95, ap50, summary = eval_results
-            self.tblogger.add_scalar("val/COCOAP50", ap50, self.epoch + 1)
-            self.tblogger.add_scalar("val/COCOAP50_95", ap50_95, self.epoch + 1)
+                self.tblogger.add_scalar("val/COCOAP50", ap50, self.epoch + 1)
+                self.tblogger.add_scalar("val/COCOAP50_95", ap50_95, self.epoch + 1)
             logger.info("\n" + summary)
         synchronize()
 

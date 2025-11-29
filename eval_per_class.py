@@ -86,8 +86,7 @@ class CocoEvalPerClass(COCOEvaluator):
             model(x)
             model = model_trt
 
-        vis_batches = random.choices(range(len(self.dataloader)), k=20)
-        #vis_batches = list(range(len(self.dataloader)))
+        #vis_batches = random.choices(range(len(self.dataloader)), k=20)
 
         for cur_iter, (imgs, _, info_imgs, ids) in enumerate(
             progress_bar(self.dataloader)
@@ -115,9 +114,11 @@ class CocoEvalPerClass(COCOEvaluator):
                     nms_end = time_synchronized()
                     nms_time += nms_end - infer_end
 
+                """
                 if cur_iter in vis_batches:
                     if outputs[0] is not None:
                         save_vis(imgs[0], outputs[0], cur_iter)
+                """
 
             data_list.extend(self.convert_to_coco_format(outputs, info_imgs, ids))
 
@@ -169,13 +170,13 @@ class CocoEvalPerClass(COCOEvaluator):
                 _, tmp = tempfile.mkstemp()
                 json.dump(data_dict, open(tmp, "w"))
                 cocoDt = cocoGt.loadRes(tmp)
-            """
+            '''
             try:
                 from yolox.layers import COCOeval_opt as COCOeval
             except ImportError:
                 from pycocotools import cocoeval as COCOeval
                 logger.warning("Use standard COCOeval.")
-            """
+            '''
             # from pycocotools.cocoeval import COCOeval
             from yolox.layers import COCOeval_opt as COCOeval
 
